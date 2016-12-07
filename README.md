@@ -1,2 +1,2 @@
 # vrenamer
-A sequential video renamer based on the episodeNumber 
+A mass video renamer based on the episodeNumber 
