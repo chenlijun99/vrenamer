@@ -1,0 +1,80 @@
+#!/bin/bash
+
+readonly VIDEO_FORMATS="\.mp4|\.mkv"	#only these types of file will be treated
+
+removeLeadingZeros ()
+{
+	local withoutZeroValue="`echo $1 | sed -r "s/^[0]*//"`"
+	echo $withoutZeroValue
+}
+
+getLastEpisode ()
+{
+	local lastEpisode=0
+	local video
+	local basename
+	local episodeNumber
+	for video in `find -maxdepth 1 -regextype posix-extended -iregex ".+($VIDEO_FORMATS)" | grep -E "[0-9]+.+"`
+	do
+		basename=$(getBasename $video)
+		episodeNumber=$(getEpisodeNumber $basename)
+
+		if [[ $episodeNumber -gt $lastEpisode ]]; then
+			lastEpisode=$episodeNumber
+		fi
+	done
+	
+	echo $lastEpisode
+}
+
+getBasename ()	# get filename without extension
+{
+	local basename=`echo $1 | sed -r "s/$VIDEO_FORMATS//"`	
+	#basename=${1%.*}	it works, but I don't know why. It's better not to use it...
+
+	echo $basename
+}
+
+getExtension ()
+{
+	local extension=`echo $1 | grep -Eo "$VIDEO_FORMATS" | sed 's/.//'`
+	#extension=${1##*.}	it works, but I don't know why
+
+	echo $extension
+}
+
+getEpisodeNumber ()
+{
+	local episodeNumber
+	episodeNumber=$(echo $1 | grep -Eo "[0-9]+" | sed -n "$((ignoreNthNumber+1))p")
+	episodeNumber=$(removeLeadingZeros $episodeNumber)
+	episodeNumber=$(printf "%0${numberLength}d" "$episodeNumber")
+	echo $episodeNumber
+}
+
+main ()
+{
+	if [[ $1 == -i || $1 == --ignore-number ]]; then
+		ignoreNthNumber=$2
+	fi
+	shift 2
+
+	# $1--the name that user wants for the video serie
+	name=$1
+	lastEpisode=$(getLastEpisode)
+	numberLength=${#lastEpisode}
+	if [[ $numberLength -gt 5 ]]; then
+		echo -e "More than 9999 episodes? Are you kidding me?!"
+		exit
+	fi
+
+	for video in `find -maxdepth 1 -regextype posix-extended -iregex ".+($VIDEO_FORMATS)" | grep -E "[0-9]+.+"`
+	do
+		basename=$(getBasename $video)	# get filename without extension
+		extension=$(getExtension $video)
+		episodeNumber=$(getEpisodeNumber $basename)
+		mv -iv $video $name-$episodeNumber.$extension
+	done
+}
+
+main "$@"
